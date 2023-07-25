@@ -9,7 +9,7 @@ If you don't know how to define CRD, you can get more details in this [page](htt
 > <font color= red>**Warning**</font>  
 > After introducing DMI, the following points should be noted when defining CRD:
 > 1. `instance.yaml`: `spec.protocol` must contain `opcua/modbus/bluetooth/customizedProtocol`.   
-     > If you don't want to introduce redundant information, you can define like this
+      If you don't want to introduce redundant information, you can define like this:
 >```yaml
 > protocol:
 >   customizedProtocol:
