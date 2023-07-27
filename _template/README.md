@@ -1,7 +1,7 @@
 # How to implement mapper
 If you don't need additional customization features, just change the following three files:
 ## 1. config.yaml
-`common.protocol` needs to be defined, for example:
+`common.protocol` needs to be defined and to be the same as the definition in `instance.yaml`, for example:
 ```yaml
 common:
   protocol: foo

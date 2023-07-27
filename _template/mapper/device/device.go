@@ -11,6 +11,7 @@ import (
 
 	"k8s.io/klog/v2"
 
+	"github.com/kubeedge/mapper-generator/mappers/Template/data"
 	"github.com/kubeedge/mapper-generator/mappers/Template/driver"
 	"github.com/kubeedge/mapper-generator/pkg/common"
 	"github.com/kubeedge/mapper-generator/pkg/config"
@@ -116,14 +117,16 @@ func initTwin(ctx context.Context, dev *driver.CustomizedDev) {
 			klog.Error(err)
 			continue
 		}
-		twinData := &TwinData{
+		propertyData := data.PropertyData{
+			InstanceID:    dev.Instance.ID,
 			DeviceName:    dev.Instance.Name,
 			Client:        dev.CustomizedClient,
 			Name:          twin.PropertyName,
 			Type:          twin.Desired.Metadatas.Type,
 			VisitorConfig: &visitorConfig,
-			Topic:         fmt.Sprintf(common.TopicTwinUpdate, dev.Instance.ID),
 		}
+		dataCtl := data.NewPanelCtl(propertyData)
+		dataCtl.InitPanel()
 
 		collectCycle := time.Duration(twin.PVisitor.CollectCycle)
 		if collectCycle == 0 {
@@ -134,7 +137,7 @@ func initTwin(ctx context.Context, dev *driver.CustomizedDev) {
 			for {
 				select {
 				case <-ticker.C:
-					twinData.Run()
+					dataCtl.Start()
 				case <-ctx.Done():
 					return
 				}
@@ -260,15 +263,22 @@ func getTwinData(deviceID string, twin common.Twin, dev *driver.CustomizedDev) (
 	if err != nil {
 		return nil, err
 	}
-	twinData := &TwinData{
-		DeviceName:    deviceID,
-		Client:        dev.CustomizedClient,
-		Name:          twin.PropertyName,
-		Type:          twin.Desired.Metadatas.Type,
-		VisitorConfig: &visitorConfig,
-		Topic:         fmt.Sprintf(common.TopicTwinUpdate, deviceID),
+	twinData := &data.TwinData{
+		Topic: fmt.Sprintf(common.TopicTwinUpdate, deviceID),
+		PropertyData: data.PropertyData{
+			InstanceID:    dev.Instance.ID,
+			DeviceName:    dev.Instance.Name,
+			Client:        dev.CustomizedClient,
+			Name:          twin.PropertyName,
+			Type:          twin.Desired.Metadatas.Type,
+			VisitorConfig: &visitorConfig,
+		},
 	}
-	return twinData.GetPayLoad()
+	sData, err := twinData.GetData()
+	if err != nil {
+		return nil, err
+	}
+	return twinData.GetPayLoad(sData)
 }
 
 // GetDevice get device instance

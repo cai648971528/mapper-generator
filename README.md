@@ -36,21 +36,21 @@ A floder named as you input will be generated. The file tree is as below:
 ```
 mapper
 ├── cmd  ----------------------- Main process.
-│   └── main.go ---------------- Almost need not change.
+│ └── main.go ------------------ Almost need not change.
 ├── config.yaml ---------------- Configuration file including DMI's grpc settting
-├── device --------------------- Implementation layer, almost need not change
-│   ├── device.go -------------- Device control layer, almost need not change
-│   └── twindata.go ------------ Report twin data to edgecore's DMI server, almost need not change
+├── data ----------------------- Implementation data layer, almost need not change
+│ ├── data.go ------------------ Export of data, any upstream module needs to be registered here
+│ └── twindata.go -------------- Report twin data to edgecore's DMI server, almost need not change
+├── device --------------------- Implementation device layer, almost need not change
+│ └── device.go ---------------- Device control, almost need not change
 ├── Dockerfile
-├── driver --------------------- Device driver layer, complete TODO item in this 
-│   ├── devicetype.go ---------- Refine the struct as your CRD.
-│   └── driver.go -------------- Fill in the functions like getting data/setting register.
+├── driver  -------------------- Device driver layer, complete TODO item in this 
+│ ├── devicetype.go  ----------- Refine the struct as your CRD.
+│ └── driver.go  --------------- Fill in the functions like getting data/setting register.
 ├── hack
-│   └── make-rules
-│       └── mapper.sh
-├── Makefile
-└── README.md
-
+│ └── make-rules
+│     └── mapper.sh
+└── Makefile
 ```
 
 # Where does it come from?
