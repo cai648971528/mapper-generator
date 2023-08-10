@@ -9,9 +9,14 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/kubeedge/kubeedge/cloud/pkg/devicecontroller/constants"
-	dmiapi "github.com/kubeedge/kubeedge/pkg/apis/dmi/v1alpha1"
 	"github.com/kubeedge/mapper-generator/pkg/common"
+	dmiapi "github.com/kubeedge/mapper-generator/pkg/temp"
 )
+
+type TwinResultResponse struct {
+	PropertyName string `json:"property_name"`
+	Payload      []byte `json:"payload"`
+}
 
 func getProtocolNameFromGrpc(device *dmiapi.Device) (string, error) {
 	if device.Spec.Protocol.Modbus != nil {
@@ -27,6 +32,17 @@ func getProtocolNameFromGrpc(device *dmiapi.Device) (string, error) {
 		return constants.CustomizedProtocol, nil
 	}
 	return "", errors.New("can not parse device protocol")
+}
+
+func getPushMethodFromGrpc(visitor *dmiapi.DevicePropertyVisitor) (string, error) {
+	// TODO add more push method
+	if visitor.PushMethod.Http != nil {
+		return "http", nil
+	}
+	if visitor.PushMethod.CustomizedProtocol != nil {
+		return "customizedPushMethod", nil
+	}
+	return "", errors.New("can not parse publish method")
 }
 
 func BuildProtocolFromGrpc(device *dmiapi.Device) (common.Protocol, error) {
@@ -288,6 +304,36 @@ func buildPropertyVisitorsFromGrpc(device *dmiapi.Device) []common.PropertyVisit
 			}
 		}
 
+		if pptv.PushMethod == nil {
+			cur := common.PropertyVisitor{
+				Name:          pptv.PropertyName,
+				PropertyName:  pptv.PropertyName,
+				ModelName:     device.Spec.DeviceModelReference,
+				CollectCycle:  pptv.GetCollectCycle(),
+				ReportCycle:   pptv.GetReportCycle(),
+				Protocol:      protocolName,
+				VisitorConfig: visitorConfig,
+			}
+			res = append(res, cur)
+			continue
+		}
+		pushMethodName, err := getPushMethodFromGrpc(pptv)
+		if err != nil {
+			klog.Errorf("err: %+v", err)
+			return nil
+		}
+		var pushMethod []byte
+		switch pushMethodName {
+		case "http":
+			pushMethod, err = json.Marshal(pptv.PushMethod.Http)
+			if err != nil {
+				klog.Errorf("err: %+v", err)
+				return nil
+			}
+		case "customizedPushMethod":
+			//TODO add customized push method parse
+			return nil
+		}
 		cur := common.PropertyVisitor{
 			Name:          pptv.PropertyName,
 			PropertyName:  pptv.PropertyName,
@@ -296,6 +342,7 @@ func buildPropertyVisitorsFromGrpc(device *dmiapi.Device) []common.PropertyVisit
 			ReportCycle:   pptv.GetReportCycle(),
 			Protocol:      protocolName,
 			VisitorConfig: visitorConfig,
+			PushMethod:    pushMethod,
 		}
 		res = append(res, cur)
 	}

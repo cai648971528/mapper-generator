@@ -17,3 +17,25 @@ type DevPanel interface {
 	UpdateModel(model *common.DeviceModel)
 	RemoveModel(modelName string)
 }
+
+type DataPanel interface {
+	// TODO add more interface
+
+	InitPushMethod() error
+	Push(data *common.DataModel)
+}
+
+type DataBaseClient interface {
+	// TODO add more interface
+
+	InitDbClient() error
+	CloseSession()
+
+	AddData(data *common.DataModel)
+
+	GetDataByDeviceName(deviceName string) ([]*common.DataModel, error)
+	GetPropertyDataByDeviceName(deviceName string, propertyData string) ([]*common.DataModel, error)
+	GetDataByTimeRange(start int64, end int64) ([]*common.DataModel, error)
+
+	DeleteDataByTimeRange(start int64, end int64) ([]*common.DataModel, error)
+}

@@ -11,7 +11,8 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"github.com/kubeedge/mapper-generator/mappers/Template/data"
+	"github.com/kubeedge/mapper-generator/mappers/Template/data/db"
+	"github.com/kubeedge/mapper-generator/mappers/Template/data/publish"
 	"github.com/kubeedge/mapper-generator/mappers/Template/driver"
 	"github.com/kubeedge/mapper-generator/pkg/common"
 	"github.com/kubeedge/mapper-generator/pkg/config"
@@ -99,12 +100,12 @@ func (d *DevPanel) start(ctx context.Context, dev *driver.CustomizedDev) {
 		klog.Errorf("Init device %s error: %v", dev.Instance.ID, err)
 		return
 	}
-	go initTwin(ctx, dev)
+	go dataHandler(ctx, dev)
 	<-ctx.Done()
 }
 
-// initTwin initialize the timer to get twin value.
-func initTwin(ctx context.Context, dev *driver.CustomizedDev) {
+// dataHandler initialize the timer to handle data plane and devicetwin.
+func dataHandler(ctx context.Context, dev *driver.CustomizedDev) {
 	for _, twin := range dev.Instance.Twins {
 		var visitorConfig driver.VisitorConfig
 		err := json.Unmarshal(twin.PVisitor.VisitorConfig, &visitorConfig)
@@ -117,33 +118,111 @@ func initTwin(ctx context.Context, dev *driver.CustomizedDev) {
 			klog.Error(err)
 			continue
 		}
-		propertyData := data.PropertyData{
-			InstanceID:    dev.Instance.ID,
+		// handle twin
+		twinData := &TwinData{
 			DeviceName:    dev.Instance.Name,
 			Client:        dev.CustomizedClient,
 			Name:          twin.PropertyName,
 			Type:          twin.Desired.Metadatas.Type,
 			VisitorConfig: &visitorConfig,
+			Topic:         fmt.Sprintf(common.TopicTwinUpdate, dev.Instance.ID),
+			CollectCycle:  time.Duration(twin.PVisitor.CollectCycle),
 		}
-		dataCtl := data.NewPanelCtl(propertyData)
-		dataCtl.InitPanel()
-
-		collectCycle := time.Duration(twin.PVisitor.CollectCycle)
-		if collectCycle == 0 {
-			collectCycle = 1 * time.Second
+		go twinData.Run(ctx)
+		// handle push method
+		if twin.PVisitor.PushMethod != nil {
+			dataModel := common.NewDataModel(dev.Instance.Name, twin.PVisitor.PropertyName, common.WithType(twin.Desired.Metadatas.Type))
+			pushHandler(ctx, &twin, dev.CustomizedClient, &visitorConfig, dataModel)
 		}
-		ticker := time.NewTicker(collectCycle)
-		go func() {
-			for {
-				select {
-				case <-ticker.C:
-					dataCtl.Start()
-				case <-ctx.Done():
-					return
-				}
-			}
-		}()
+		// handle database
+		if false {
+			// TODO add flag to start db work
+			dataModel := common.NewDataModel(dev.Instance.Name, twin.PVisitor.PropertyName, common.WithType(twin.Desired.Metadatas.Type))
+			dbHandler(ctx, &twin, dev.CustomizedClient, &visitorConfig, dataModel)
+		}
 	}
+}
+
+// pushHandler start data panel work
+func pushHandler(ctx context.Context, twin *common.Twin, client *driver.CustomizedClient, visitorConfig *driver.VisitorConfig, dataModel *common.DataModel) {
+	dataPanel, err := publish.NewDataPanel(twin.PVisitor.PushMethod)
+	if err != nil {
+		klog.Errorf("new data panel error: %v", err)
+		return
+	}
+	err = dataPanel.InitPushMethod()
+	if err != nil {
+		klog.Errorf("init publish method err: %v", err)
+		return
+	}
+	reportCycle := time.Duration(twin.PVisitor.ReportCycle)
+	if reportCycle == 0 {
+		reportCycle = 1 * time.Second
+	}
+	ticker := time.NewTicker(reportCycle)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				deviceData, err := client.GetDeviceData(visitorConfig)
+				if err != nil {
+					klog.Errorf("publish error: %v", err)
+					continue
+				}
+				sData, err := common.ConvertToString(deviceData)
+				if err != nil {
+					klog.Errorf("Failed to convert publish method data : %v", err)
+					continue
+				}
+				dataModel.SetValue(sData)
+				dataModel.SetTimeStamp()
+
+				dataPanel.Push(dataModel)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
+// dbHandler start db client to save data
+func dbHandler(ctx context.Context, twin *common.Twin, client *driver.CustomizedClient, visitorConfig *driver.VisitorConfig, dataModel *common.DataModel) {
+	dbClient, err := db.NewDataBaseClient()
+	if err != nil {
+		klog.Errorf("new database client error: %v", err)
+		return
+	}
+	err = dbClient.InitDbClient()
+	if err != nil {
+		klog.Errorf("init database client err: %v", err)
+		return
+	}
+	// TODO 定时推送至数据库 定时清扫s
+	ticker := time.NewTicker(1 * time.Second)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				deviceData, err := client.GetDeviceData(visitorConfig)
+				if err != nil {
+					klog.Errorf("publish error: %v", err)
+					continue
+				}
+				sData, err := common.ConvertToString(deviceData)
+				if err != nil {
+					klog.Errorf("Failed to convert publish method data : %v", err)
+					continue
+				}
+				dataModel.SetValue(sData)
+				dataModel.SetTimeStamp()
+
+				dbClient.AddData(dataModel)
+			case <-ctx.Done():
+				dbClient.CloseSession()
+				return
+			}
+		}
+	}()
 }
 
 // setVisitor check if visitor property is readonly, if not then set it.
@@ -263,22 +342,15 @@ func getTwinData(deviceID string, twin common.Twin, dev *driver.CustomizedDev) (
 	if err != nil {
 		return nil, err
 	}
-	twinData := &data.TwinData{
-		Topic: fmt.Sprintf(common.TopicTwinUpdate, deviceID),
-		PropertyData: data.PropertyData{
-			InstanceID:    dev.Instance.ID,
-			DeviceName:    dev.Instance.Name,
-			Client:        dev.CustomizedClient,
-			Name:          twin.PropertyName,
-			Type:          twin.Desired.Metadatas.Type,
-			VisitorConfig: &visitorConfig,
-		},
+	twinData := &TwinData{
+		DeviceName:    deviceID,
+		Client:        dev.CustomizedClient,
+		Name:          twin.PropertyName,
+		Type:          twin.Desired.Metadatas.Type,
+		VisitorConfig: &visitorConfig,
+		Topic:         fmt.Sprintf(common.TopicTwinUpdate, deviceID),
 	}
-	sData, err := twinData.GetData()
-	if err != nil {
-		return nil, err
-	}
-	return twinData.GetPayLoad(sData)
+	return twinData.GetPayLoad()
 }
 
 // GetDevice get device instance

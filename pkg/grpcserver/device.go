@@ -10,8 +10,8 @@ import (
 
 	"k8s.io/klog/v2"
 
-	dmiapi "github.com/kubeedge/kubeedge/pkg/apis/dmi/v1alpha1"
 	"github.com/kubeedge/mapper-generator/pkg/common"
+	dmiapi "github.com/kubeedge/mapper-generator/pkg/temp"
 	"github.com/kubeedge/mapper-generator/pkg/util/parse"
 )
 

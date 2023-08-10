@@ -74,6 +74,7 @@ type PropertyVisitor struct {
 	PProperty     Property
 	Protocol      string          `json:"protocol,omitempty"`
 	VisitorConfig json.RawMessage `json:"visitorConfig"`
+	PushMethod    json.RawMessage `json:"pushMethod,omitempty"`
 }
 
 // Data is data structure for the message that only be subscribed in edge node internal.

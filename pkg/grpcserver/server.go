@@ -9,8 +9,8 @@ import (
 	"google.golang.org/grpc/reflection"
 	"k8s.io/klog/v2"
 
-	dmiapi "github.com/kubeedge/kubeedge/pkg/apis/dmi/v1alpha1"
 	"github.com/kubeedge/mapper-generator/pkg/global"
+	dmiapi "github.com/kubeedge/mapper-generator/pkg/temp"
 )
 
 type Config struct {
@@ -19,6 +19,7 @@ type Config struct {
 }
 
 type Server struct {
+	dmiapi.UnimplementedDeviceMapperServiceServer
 	lis      net.Listener
 	cfg      Config
 	devPanel global.DevPanel
