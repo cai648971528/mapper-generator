@@ -39,6 +39,9 @@ func getPushMethodFromGrpc(visitor *dmiapi.DevicePropertyVisitor) (string, error
 	if visitor.PushMethod.Http != nil {
 		return "http", nil
 	}
+	if visitor.PushMethod.Mqtt != nil {
+		return "mqtt", nil
+	}
 	if visitor.PushMethod.CustomizedProtocol != nil {
 		return "customizedPushMethod", nil
 	}
@@ -330,6 +333,12 @@ func buildPropertyVisitorsFromGrpc(device *dmiapi.Device) []common.PropertyVisit
 				klog.Errorf("err: %+v", err)
 				return nil
 			}
+		case "mqtt":
+			pushMethod, err = json.Marshal(pptv.PushMethod.Mqtt)
+			if err != nil {
+				klog.Errorf("err: %+v", err)
+				return nil
+			}
 		case "customizedPushMethod":
 			//TODO add customized push method parse
 			return nil
@@ -342,7 +351,10 @@ func buildPropertyVisitorsFromGrpc(device *dmiapi.Device) []common.PropertyVisit
 			ReportCycle:   pptv.GetReportCycle(),
 			Protocol:      protocolName,
 			VisitorConfig: visitorConfig,
-			PushMethod:    pushMethod,
+			PushMethod: common.PushMethodConfig{
+				MethodName:   pushMethodName,
+				MethodConfig: pushMethod,
+			},
 		}
 		res = append(res, cur)
 	}

@@ -1,4 +1,4 @@
-package publish
+package http
 
 import (
 	"encoding/json"
@@ -31,13 +31,13 @@ func NewDataPanel(config json.RawMessage) (global.DataPanel, error) {
 }
 
 func (pm *PushMethod) InitPushMethod() error {
+	// TODO add init code
+	fmt.Println("Init Http")
 	return nil
 }
 
 func (pm *PushMethod) Push(data *common.DataModel) {
+	// TODO add push code
 	url := fmt.Sprintf("%s%d/%s", pm.HTTP.HostName, pm.HTTP.Port, pm.HTTP.RequestPath)
-	fmt.Printf("publish to: %s\n", url)
-	fmt.Printf("timeout: %d\n", pm.HTTP.Timeout)
-	fmt.Printf("DataModel: %v", data)
-	// TODO Add specific implementation
+	fmt.Printf("publish %v to: %s, timeout: %d", data.Value, url, pm.HTTP.Timeout)
 }

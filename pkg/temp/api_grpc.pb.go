@@ -21,7 +21,7 @@
 // - protoc             v4.23.3
 // source: api.proto
 
-package dmiapi
+package v1alpha1
 
 import (
 	context "context"

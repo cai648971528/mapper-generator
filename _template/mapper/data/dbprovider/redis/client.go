@@ -1,4 +1,4 @@
-package db
+package redis
 
 import (
 	"github.com/kubeedge/mapper-generator/pkg/common"

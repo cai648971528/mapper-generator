@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"github.com/kubeedge/mapper-generator/pkg/httpserver"
 	"os"
 
 	"k8s.io/klog/v2"
@@ -55,6 +56,10 @@ func main() {
 		klog.Infoln("registerMapper finished")
 	}
 	go panel.DevStart()
+
+	httpServer := httpserver.NewRestServer(panel)
+	go httpServer.StartServer()
+
 	defer grpcServer.Stop()
 	if err = grpcServer.Start(); err != nil {
 		klog.Fatal(err)

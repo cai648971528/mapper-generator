@@ -1,5 +1,6 @@
 package common
 
+// DataModel defined standard data model for transferring data between interfaces
 type DataModel struct {
 	// TODO DataModel is standardized data, need add field
 	DeviceName   string

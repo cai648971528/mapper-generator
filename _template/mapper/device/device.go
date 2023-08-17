@@ -3,6 +3,7 @@ package device
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -11,11 +12,13 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"github.com/kubeedge/mapper-generator/mappers/Template/data/db"
-	"github.com/kubeedge/mapper-generator/mappers/Template/data/publish"
+	db "github.com/kubeedge/mapper-generator/mappers/Template/data/dbprovider/influx"
+	httpMethod "github.com/kubeedge/mapper-generator/mappers/Template/data/publish/http"
+	mqttMethod "github.com/kubeedge/mapper-generator/mappers/Template/data/publish/mqtt"
 	"github.com/kubeedge/mapper-generator/mappers/Template/driver"
 	"github.com/kubeedge/mapper-generator/pkg/common"
 	"github.com/kubeedge/mapper-generator/pkg/config"
+	"github.com/kubeedge/mapper-generator/pkg/global"
 	"github.com/kubeedge/mapper-generator/pkg/util/parse"
 )
 
@@ -130,7 +133,7 @@ func dataHandler(ctx context.Context, dev *driver.CustomizedDev) {
 		}
 		go twinData.Run(ctx)
 		// handle push method
-		if twin.PVisitor.PushMethod != nil {
+		if twin.PVisitor.PushMethod.MethodConfig != nil && twin.PVisitor.PushMethod.MethodName != "" {
 			dataModel := common.NewDataModel(dev.Instance.Name, twin.PVisitor.PropertyName, common.WithType(twin.Desired.Metadatas.Type))
 			pushHandler(ctx, &twin, dev.CustomizedClient, &visitorConfig, dataModel)
 		}
@@ -145,7 +148,16 @@ func dataHandler(ctx context.Context, dev *driver.CustomizedDev) {
 
 // pushHandler start data panel work
 func pushHandler(ctx context.Context, twin *common.Twin, client *driver.CustomizedClient, visitorConfig *driver.VisitorConfig, dataModel *common.DataModel) {
-	dataPanel, err := publish.NewDataPanel(twin.PVisitor.PushMethod)
+	var dataPanel global.DataPanel
+	var err error
+	switch twin.PVisitor.PushMethod.MethodName {
+	case "http":
+		dataPanel, err = httpMethod.NewDataPanel(twin.PVisitor.PushMethod.MethodConfig)
+	case "mqtt":
+		dataPanel, err = mqttMethod.NewDataPanel(twin.PVisitor.PushMethod.MethodConfig)
+	default:
+		err = errors.New("Custom protocols are not currently supported")
+	}
 	if err != nil {
 		klog.Errorf("new data panel error: %v", err)
 		return
@@ -197,7 +209,6 @@ func dbHandler(ctx context.Context, twin *common.Twin, client *driver.Customized
 		klog.Errorf("init database client err: %v", err)
 		return
 	}
-	// TODO 定时推送至数据库 定时清扫s
 	ticker := time.NewTicker(1 * time.Second)
 	go func() {
 		for {
@@ -423,4 +434,38 @@ func (d *DevPanel) RemoveModel(modelName string) {
 	d.serviceMutex.Lock()
 	delete(d.models, modelName)
 	d.serviceMutex.Unlock()
+}
+
+// GetTwinResult Get twin's value and data type
+func (d *DevPanel) GetTwinResult(deviceID string, twinName string) (string, string, error) {
+	d.serviceMutex.Lock()
+	defer d.serviceMutex.Unlock()
+	dev, ok := d.devices[deviceID]
+	if !ok {
+		return "", "", fmt.Errorf("not found device %s", deviceID)
+	}
+	var res string
+	var dataType string
+	for _, twin := range dev.Instance.Twins {
+		if twinName != "" && twin.PropertyName != twinName {
+			continue
+		}
+		var visitorConfig driver.VisitorConfig
+		err := json.Unmarshal(twin.PVisitor.VisitorConfig, &visitorConfig)
+		if err != nil {
+			return "", "", err
+		}
+		err = setVisitor(&visitorConfig, &twin, dev)
+
+		data, err := dev.CustomizedClient.GetDeviceData(&visitorConfig)
+		if err != nil {
+			return "", "", fmt.Errorf("get device data failed: %v", err)
+		}
+		res, err = common.ConvertToString(data)
+		if err != nil {
+			return "", "", err
+		}
+		dataType = twin.PVisitor.PProperty.DataType
+	}
+	return res, dataType, nil
 }

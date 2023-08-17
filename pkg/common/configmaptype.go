@@ -72,9 +72,15 @@ type PropertyVisitor struct {
 	CollectCycle  int64  `json:"collectCycle"`
 	ReportCycle   int64  `json:"reportCycle,omitempty"`
 	PProperty     Property
-	Protocol      string          `json:"protocol,omitempty"`
-	VisitorConfig json.RawMessage `json:"visitorConfig"`
-	PushMethod    json.RawMessage `json:"pushMethod,omitempty"`
+	Protocol      string           `json:"protocol,omitempty"`
+	VisitorConfig json.RawMessage  `json:"visitorConfig"`
+	PushMethod    PushMethodConfig `json:"pushMethod,omitempty"`
+}
+
+// PushMethodConfig is structure to store push config
+type PushMethodConfig struct {
+	MethodName   string          `json:"MethodName"`
+	MethodConfig json.RawMessage `json:"MethodConfig"`
 }
 
 // Data is data structure for the message that only be subscribed in edge node internal.

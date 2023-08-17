@@ -35,18 +35,27 @@ Please input the mapper name (like 'Bluetooth', 'BLE'): foo
 A floder named as you input will be generated. The file tree is as below:
 ```
 mapper
-├── cmd  ----------------------- Main process.
+├── cmd ------------------------ Main process.
 │ └── main.go ------------------ Almost need not change.
 ├── config.yaml ---------------- Configuration file including DMI's grpc settting
-├── data ----------------------- Implementation data layer, almost need not change
-│ ├── data.go ------------------ Export of data, any upstream module needs to be registered here
-│ └── twindata.go -------------- Report twin data to edgecore's DMI server, almost need not change
+├── data ----------------------- Publish data and database implementation layer, almost need not change
+│ ├── dbprovider --------------- Provider implement database interfaces to save data and provide REST API
+│ │ ├── influx ----------------- Implementation of Time Series Database(InfluxDB)
+│ │ │ └── client.go ------------ WIP
+│ │ └── redis  ----------------- Implementation of K/V Database(Redis)
+│ │     └── client.go ---------- WIP
+│ └── publish ------------------ Publisher implement push interfaces to push data,will add more protocols in the future
+│     ├── http ----------------- HTTP client will push data to server
+│     │ └── client.go  --------- WIP
+│     └── mqtt ----------------- MQTT client will push data to broker
+│         └── client.go  ------- WIP
 ├── device --------------------- Implementation device layer, almost need not change
-│ └── device.go ---------------- Device control, almost need not change
+│ ├── device.go ---------------- Device control, almost need not change
+│ └── devicetwin.go ------------ Push twin data to EdgeCore, almost need not change
 ├── Dockerfile
-├── driver  -------------------- Device driver layer, complete TODO item in this 
-│ ├── devicetype.go  ----------- Refine the struct as your CRD.
-│ └── driver.go  --------------- Fill in the functions like getting data/setting register.
+├── driver --------------------- Device driver layer, complete TODO item in this 
+│ ├── devicetype.go ------------ Refine the struct as your CRD
+│ └── driver.go ---------------- Fill in the functions like getting data/setting register.
 ├── hack
 │ └── make-rules
 │     └── mapper.sh
