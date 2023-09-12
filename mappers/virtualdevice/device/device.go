@@ -12,11 +12,10 @@ import (
 
 	"k8s.io/klog/v2"
 
-	_ "github.com/kubeedge/mapper-generator/mappers/dmi-redis/data/dbprovider/influx"
-	db "github.com/kubeedge/mapper-generator/mappers/dmi-redis/data/dbprovider/redis"
-	httpMethod "github.com/kubeedge/mapper-generator/mappers/dmi-redis/data/publish/http"
-	mqttMethod "github.com/kubeedge/mapper-generator/mappers/dmi-redis/data/publish/mqtt"
-	"github.com/kubeedge/mapper-generator/mappers/dmi-redis/driver"
+	db "github.com/kubeedge/mapper-generator/mappers/virtualdevice/data/dbprovider/tdengine"
+	httpMethod "github.com/kubeedge/mapper-generator/mappers/virtualdevice/data/publish/http"
+	mqttMethod "github.com/kubeedge/mapper-generator/mappers/virtualdevice/data/publish/mqtt"
+	"github.com/kubeedge/mapper-generator/mappers/virtualdevice/driver"
 	"github.com/kubeedge/mapper-generator/pkg/common"
 	"github.com/kubeedge/mapper-generator/pkg/config"
 	"github.com/kubeedge/mapper-generator/pkg/global"
@@ -201,7 +200,7 @@ func pushHandler(ctx context.Context, twin *common.Twin, client *driver.Customiz
 // dbHandler start db client to save data
 func dbHandler(ctx context.Context, twin *common.Twin, client *driver.CustomizedClient, visitorConfig *driver.VisitorConfig, dataModel *common.DataModel) {
 	switch twin.PVisitor.DbProvider.DbProviderName {
-	case "influx":
+	case "tdengine":
 
 		klog.V(1).Infof("providerConfig = %v", twin.PVisitor.DbProvider.ProviderConfig)
 		testconfig := make(map[string]interface{})
@@ -209,12 +208,12 @@ func dbHandler(ctx context.Context, twin *common.Twin, client *driver.Customized
 		if err == nil {
 			klog.V(1).Infof("ProviderConfig.ConfigData = %v", testconfig)
 		}
-		//testconfig = make(map[string]interface{})
-		//err = json.Unmarshal(twin.PVisitor.DbProvider.ProviderConfig.DataStandard, &testconfig)
-		//if err == nil {
-		//	klog.V(1).Infof("ProviderConfig.DataStandard = %v", testconfig)
-		//}
-		dbConfig, err := db.NewDataBaseClient(twin.PVisitor.DbProvider.ProviderConfig.ConfigData)
+		testconfig = make(map[string]interface{})
+		err = json.Unmarshal(twin.PVisitor.DbProvider.ProviderConfig.DataStandard, &testconfig)
+		if err == nil {
+			klog.V(1).Infof("ProviderConfig.DataStandard = %v", testconfig)
+		}
+		dbConfig, err := db.NewDataBaseClient(twin.PVisitor.DbProvider.ProviderConfig.ConfigData, twin.PVisitor.DbProvider.ProviderConfig.DataStandard)
 		if err != nil {
 			klog.Errorf("new database client error: %v", err)
 			return
@@ -246,9 +245,9 @@ func dbHandler(ctx context.Context, twin *common.Twin, client *driver.Customized
 					dataModel.SetValue(sData)
 					dataModel.SetTimeStamp()
 
-					err = dbConfig.AddData(dataModel, *dbClient)
+					err = dbConfig.AddData(dataModel, dbClient)
 					if err != nil {
-						klog.Errorf("influx database add data error: %v", err)
+						klog.Errorf("tdengine database add data error: %v", err)
 						return
 					}
 				case <-ctx.Done():

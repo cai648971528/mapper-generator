@@ -2,10 +2,9 @@ package driver
 
 import (
 	"fmt"
+	"k8s.io/klog/v2"
 	"math/rand"
 	"sync"
-
-	"k8s.io/klog/v2"
 )
 
 func NewClient(commonProtocol ProtocolCommonConfig,
