@@ -12,10 +12,11 @@ import (
 
 	"k8s.io/klog/v2"
 
-	db "github.com/kubeedge/mapper-generator/mappers/Template/data/dbprovider/influx"
-	httpMethod "github.com/kubeedge/mapper-generator/mappers/Template/data/publish/http"
-	mqttMethod "github.com/kubeedge/mapper-generator/mappers/Template/data/publish/mqtt"
-	"github.com/kubeedge/mapper-generator/mappers/Template/driver"
+	_ "github.com/kubeedge/mapper-generator/mappers/dmi-redis/data/dbprovider/influx"
+	db "github.com/kubeedge/mapper-generator/mappers/dmi-redis/data/dbprovider/redis"
+	httpMethod "github.com/kubeedge/mapper-generator/mappers/dmi-redis/data/publish/http"
+	mqttMethod "github.com/kubeedge/mapper-generator/mappers/dmi-redis/data/publish/mqtt"
+	"github.com/kubeedge/mapper-generator/mappers/dmi-redis/driver"
 	"github.com/kubeedge/mapper-generator/pkg/common"
 	"github.com/kubeedge/mapper-generator/pkg/config"
 	"github.com/kubeedge/mapper-generator/pkg/global"
@@ -199,41 +200,64 @@ func pushHandler(ctx context.Context, twin *common.Twin, client *driver.Customiz
 
 // dbHandler start db client to save data
 func dbHandler(ctx context.Context, twin *common.Twin, client *driver.CustomizedClient, visitorConfig *driver.VisitorConfig, dataModel *common.DataModel) {
-	dbClient, err := db.NewDataBaseClient()
-	if err != nil {
-		klog.Errorf("new database client error: %v", err)
-		return
-	}
-	err = dbClient.InitDbClient()
-	if err != nil {
-		klog.Errorf("init database client err: %v", err)
-		return
-	}
-	ticker := time.NewTicker(1 * time.Second)
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				deviceData, err := client.GetDeviceData(visitorConfig)
-				if err != nil {
-					klog.Errorf("publish error: %v", err)
-					continue
-				}
-				sData, err := common.ConvertToString(deviceData)
-				if err != nil {
-					klog.Errorf("Failed to convert publish method data : %v", err)
-					continue
-				}
-				dataModel.SetValue(sData)
-				dataModel.SetTimeStamp()
+	switch twin.PVisitor.DbProvider.DbProviderName {
+	case "influx":
 
-				dbClient.AddData(dataModel)
-			case <-ctx.Done():
-				dbClient.CloseSession()
-				return
-			}
+		klog.V(1).Infof("providerConfig = %v", twin.PVisitor.DbProvider.ProviderConfig)
+		testconfig := make(map[string]interface{})
+		err := json.Unmarshal(twin.PVisitor.DbProvider.ProviderConfig.ConfigData, &testconfig)
+		if err == nil {
+			klog.V(1).Infof("ProviderConfig.ConfigData = %v", testconfig)
 		}
-	}()
+		//testconfig = make(map[string]interface{})
+		//err = json.Unmarshal(twin.PVisitor.DbProvider.ProviderConfig.DataStandard, &testconfig)
+		//if err == nil {
+		//	klog.V(1).Infof("ProviderConfig.DataStandard = %v", testconfig)
+		//}
+		dbConfig, err := db.NewDataBaseClient(twin.PVisitor.DbProvider.ProviderConfig.ConfigData)
+		if err != nil {
+			klog.Errorf("new database client error: %v", err)
+			return
+		}
+		dbClient, err := dbConfig.InitDbClient()
+		if err != nil {
+			klog.Errorf("init database client err: %v", err)
+			return
+		}
+		reportCycle := time.Duration(twin.PVisitor.ReportCycle)
+		if reportCycle == 0 {
+			reportCycle = 1 * time.Second
+		}
+		ticker := time.NewTicker(reportCycle)
+		go func() {
+			for {
+				select {
+				case <-ticker.C:
+					deviceData, err := client.GetDeviceData(visitorConfig)
+					if err != nil {
+						klog.Errorf("publish error: %v", err)
+						continue
+					}
+					sData, err := common.ConvertToString(deviceData)
+					if err != nil {
+						klog.Errorf("Failed to convert publish method data : %v", err)
+						continue
+					}
+					dataModel.SetValue(sData)
+					dataModel.SetTimeStamp()
+
+					err = dbConfig.AddData(dataModel, *dbClient)
+					if err != nil {
+						klog.Errorf("influx database add data error: %v", err)
+						return
+					}
+				case <-ctx.Done():
+					dbConfig.CloseSession(dbClient)
+					return
+				}
+			}
+		}()
+	}
 }
 
 // setVisitor check if visitor property is readonly, if not then set it.
