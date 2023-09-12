@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kubeedge/mapper-generator/pkg/common"
+	_ "github.com/taosdata/driver-go/v3/taosSql"
 	"k8s.io/klog/v2"
 )
 
