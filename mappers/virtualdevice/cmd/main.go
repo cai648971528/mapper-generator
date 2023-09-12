@@ -7,7 +7,7 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"github.com/kubeedge/mapper-generator/mappers/dmi-redis/device"
+	"github.com/kubeedge/mapper-generator/mappers/virtualdevice/device"
 	"github.com/kubeedge/mapper-generator/pkg/common"
 	"github.com/kubeedge/mapper-generator/pkg/config"
 	"github.com/kubeedge/mapper-generator/pkg/grpcserver"
