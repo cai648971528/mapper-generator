@@ -3,6 +3,7 @@ package tdengine
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"github.com/kubeedge/mapper-generator/pkg/common"
 	"k8s.io/klog/v2"
 )
@@ -63,9 +64,25 @@ func (d *DataBaseConfig) AddData(data *common.DataModel, db *sql.DB) error {
 	//TODO implement me
 	//panic("implement me")
 }
-func (d *DataBaseConfig) GetDataByDeviceName(deviceName string) ([]*common.DataModel, error) {
+func (d *DataBaseConfig) GetDataByDeviceName(deviceName string, db *sql.DB) ([]*common.DataModel, error) {
+	query := fmt.Sprintf("SELECT DeviceName, PropertyName, Value, Type, TimeStamp FROM %s", deviceName)
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var results []*common.DataModel
+	for rows.Next() {
+		var result *common.DataModel
+		err := rows.Scan(&result.DeviceName, &result.PropertyName, &result.Value, &result.Type, &result.TimeStamp)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, result)
+	}
+	return results, nil
 	//TODO implement me
-	panic("implement me")
+	//panic("implement me")
 }
 func (d *DataBaseConfig) GetPropertyDataByDeviceName(deviceName string, propertyData string) ([]*common.DataModel, error) {
 	//TODO implement me
