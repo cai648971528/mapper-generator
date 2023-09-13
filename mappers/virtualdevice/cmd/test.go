@@ -53,12 +53,6 @@ func main() {
 	fmt.Println(insertSQL)
 	//_, err = tdengine.DB.Exec(insertSQL)
 	//
-	////err = dbconfig.AddData(&data, dbclient)
-	//if err != nil {
-	//	fmt.Printf("add failed :%v", err.Error())
-	//} else {
-	//	fmt.Println("add success")
-	//}
 
 	//dbconfig.AddData(&data)
 	//dbmodel, _ := dbconfig.GetDataByDeviceName("device02")
