@@ -48,7 +48,7 @@ func main() {
 	fmt.Println(datatime)
 
 	insertSQL := fmt.Sprintf("INSERT INTO %s USING %s TAGS ('%s') VALUES('%v','%s', '%s', '%s', '%s');",
-		data.DeviceName, dbconfig.Standard.SuperTable, dbconfig.Standard.TagLabel, datatime, data.DeviceName, data.PropertyName, data.Value, data.Type)
+		data.PropertyName, dbconfig.Standard.SuperTable, dbconfig.Standard.TagLabel, datatime, data.DeviceName, data.PropertyName, data.Value, data.Type)
 
 	fmt.Println(insertSQL)
 	//_, err = tdengine.DB.Exec(insertSQL)
