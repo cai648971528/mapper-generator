@@ -218,7 +218,7 @@ func dbHandler(ctx context.Context, twin *common.Twin, client *driver.Customized
 			klog.Errorf("new database client error: %v", err)
 			return
 		}
-		dbClient, err := dbConfig.InitDbClient()
+		err = dbConfig.InitDbClient()
 		if err != nil {
 			klog.Errorf("init database client err: %v", err)
 			return
@@ -245,13 +245,13 @@ func dbHandler(ctx context.Context, twin *common.Twin, client *driver.Customized
 					dataModel.SetValue(sData)
 					dataModel.SetTimeStamp()
 
-					err = dbConfig.AddData(dataModel, dbClient)
+					err = dbConfig.AddData(dataModel)
 					if err != nil {
 						klog.Errorf("tdengine database add data error: %v", err)
 						return
 					}
 				case <-ctx.Done():
-					dbConfig.CloseSession(dbClient)
+					dbConfig.CloseSessio()
 					return
 				}
 			}

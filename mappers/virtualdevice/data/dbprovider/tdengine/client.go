@@ -5,8 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kubeedge/mapper-generator/pkg/common"
-	_ "github.com/taosdata/driver-go/v3/taosSql"
+	_ "github.com/taosdata/driver-go/v3/taosRestful"
 	"k8s.io/klog/v2"
+	"time"
+)
+
+var (
+	DB *sql.DB
 )
 
 type DataBaseConfig struct {
@@ -19,7 +24,6 @@ type ConfigData struct {
 type DataStandard struct {
 	SuperTable string `json:"superTable,omitempty"`
 	TagLabel   string `json:"tagLabel,omitempty"`
-	TagGroupId string `json:"tagGroupId,omitempty"`
 }
 
 func NewDataBaseClient(config json.RawMessage, standard json.RawMessage) (*DataBaseConfig, error) {
@@ -38,48 +42,60 @@ func NewDataBaseClient(config json.RawMessage, standard json.RawMessage) (*DataB
 		Standard: datastandard,
 	}, nil
 }
-func (d *DataBaseConfig) InitDbClient() (*sql.DB, error) {
-	taos, err := sql.Open("taosSql", d.Config.Dsn)
+func (d *DataBaseConfig) InitDbClient() error {
+	var err error
+	DB, err = sql.Open("taosRestful", d.Config.Dsn)
 	if err != nil {
-		klog.Infof("failed to connect TDengine, err:", err)
+		//klog.Infof("failed connect to TDengine, err:", err)
+		fmt.Printf("failed connect to TDengine:%v", err)
 	}
-	return taos, err
+	return nil
 	//TODO implement me
 	//panic("implement me")
 }
-func (d *DataBaseConfig) CloseSession(db *sql.DB) {
-	err := db.Close()
+func (d *DataBaseConfig) CloseSessio() {
+	err := DB.Close()
 	if err != nil {
 		klog.Infoln("failded disconnect taosDB")
 	}
 	//TODO implement me
 	//panic("implement me")
 }
-func (d *DataBaseConfig) AddData(data *common.DataModel, db *sql.DB) error {
-	tablename := data.DeviceName
-	_, err := db.Exec("INSERT INTO "+tablename+" USING "+d.Standard.SuperTable+" TAGS ("+d.Standard.TagLabel+", "+d.Standard.TagGroupId+") VALUES (?, ?, ?, ?,?);", data.DeviceName, data.PropertyName, data.Value, data.Type, data.TimeStamp)
+func (d *DataBaseConfig) AddData(data *common.DataModel) error {
+
+	datatime := time.Unix(data.TimeStamp, 0).Format("2006-01-02 15:04:05")
+	insertSQL := fmt.Sprintf("INSERT INTO %s USING %s TAGS ('%s') VALUES('%v','%s', '%s', '%s', '%s');",
+		data.PropertyName, d.Standard.SuperTable, d.Standard.TagLabel, datatime, data.DeviceName, data.PropertyName, data.Value, data.Type)
+
+	fmt.Println(insertSQL)
+	//tdengine创建超级表第一列必须为时间戳
+	_, err := DB.Exec(insertSQL)
 	if err != nil {
-		klog.Infoln("failed add data to tdengine")
+		klog.Infof("failed add data to tdengine:%v", err)
 	}
 	return nil
 	//TODO implement me
 	//panic("implement me")
 }
-func (d *DataBaseConfig) GetDataByDeviceName(deviceName string, db *sql.DB) ([]*common.DataModel, error) {
-	query := fmt.Sprintf("SELECT DeviceName, PropertyName, Value, Type, TimeStamp FROM %s", deviceName)
-	rows, err := db.Query(query)
+func (d *DataBaseConfig) GetDataByDeviceName(deviceName string) ([]*common.DataModel, error) {
+	query := fmt.Sprintf("SELECT ts, devicename, propertyname, data, type FROM %s", deviceName)
+	rows, err := DB.Query(query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var results []*common.DataModel
 	for rows.Next() {
-		var result *common.DataModel
-		err := rows.Scan(&result.DeviceName, &result.PropertyName, &result.Value, &result.Type, &result.TimeStamp)
+		var result common.DataModel
+		var ts time.Time
+		err := rows.Scan(&ts, &result.DeviceName, &result.PropertyName, &result.Value, &result.Type)
 		if err != nil {
+			//klog.Infof("scan error:\n", err)
+			fmt.Printf("scan error:\n", err)
 			return nil, err
 		}
-		results = append(results, result)
+		result.TimeStamp = ts.Unix()
+		results = append(results, &result)
 	}
 	return results, nil
 	//TODO implement me
