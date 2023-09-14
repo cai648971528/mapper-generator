@@ -35,8 +35,10 @@ func (d *DataBaseConfig) InitDbClient() error {
 	var err error
 	DB, err = sql.Open("taosRestful", d.Config.Dsn)
 	if err != nil {
-		//klog.Infof("failed connect to TDengine, err:", err)
-		fmt.Printf("failed connect to TDengine:%v", err)
+		klog.Errorf("init TDEngine db fail, err= %v:", err)
+		//fmt.Printf("failed connect to TDengine:%v", err)
+	} else {
+		klog.V(1).Infof("init TDEnine database successfully")
 	}
 	return nil
 	//TODO implement me
@@ -45,7 +47,7 @@ func (d *DataBaseConfig) InitDbClient() error {
 func (d *DataBaseConfig) CloseSessio() {
 	err := DB.Close()
 	if err != nil {
-		klog.Infoln("failded disconnect taosDB")
+		klog.V(4).Info("close  TDEngine failed")
 	}
 	//TODO implement me
 	//panic("implement me")
@@ -63,8 +65,6 @@ func (d *DataBaseConfig) AddData(data *common.DataModel) error {
 	insertSQL := fmt.Sprintf("INSERT INTO %s USING %s TAGS ('%s') VALUES('%v','%s', '%s', '%s', '%s');",
 		data.PropertyName, data.DeviceName, data.PropertyName, datatime, data.DeviceName, data.PropertyName, data.Value, data.Type)
 
-	fmt.Println(insertSQL)
-	//tdengine创建超级表第一列必须为时间戳
 	_, err = DB.Exec(insertSQL)
 	if err != nil {
 		klog.Infof("failed add data to tdengine:%v", err)
