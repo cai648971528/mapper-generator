@@ -38,7 +38,7 @@ func (d *DataBaseConfig) InitDbClient() error {
 		klog.Errorf("init TDEngine db fail, err= %v:", err)
 		//fmt.Printf("failed connect to TDengine:%v", err)
 	} else {
-		klog.V(1).Infof("init TDEnine database successfully")
+		klog.V(1).Infof("init TDEngine database successfully")
 	}
 	return nil
 	//TODO implement me
@@ -54,21 +54,39 @@ func (d *DataBaseConfig) CloseSessio() {
 }
 func (d *DataBaseConfig) AddData(data *common.DataModel) error {
 
-	stabel := fmt.Sprintf("CREATE STABLE %s (ts timestamp, devicename binary(64), propertyname binary(64), data binary(64),type binary(64)) TAGS (propertyName binary(64));", data.DeviceName)
-	fmt.Println(stabel)
-	_, err := DB.Exec(stabel)
-	if err != nil {
-		fmt.Printf("create stable failed %v", err)
-	}
+	stable_name := fmt.Sprintf("SHOW STABLES LIKE '%s'", data.DeviceName)
+
+	stabel := fmt.Sprintf("CREATE STABLE %s (ts timestamp, devicename binary(64), propertyname binary(64), data binary(64),type binary(64)) TAGS (localtion binary(64));", data.DeviceName)
 
 	datatime := time.Unix(data.TimeStamp, 0).Format("2006-01-02 15:04:05")
 	insertSQL := fmt.Sprintf("INSERT INTO %s USING %s TAGS ('%s') VALUES('%v','%s', '%s', '%s', '%s');",
 		data.PropertyName, data.DeviceName, data.PropertyName, datatime, data.DeviceName, data.PropertyName, data.Value, data.Type)
 
-	_, err = DB.Exec(insertSQL)
-	if err != nil {
-		klog.Infof("failed add data to tdengine:%v", err)
+	rows, _ := DB.Query(stable_name)
+
+	if err := rows.Err(); err != nil {
+		fmt.Printf("query stable failed：%v", err)
 	}
+
+	switch rows.Next() {
+	case false:
+		_, err := DB.Exec(stabel)
+		if err != nil {
+			klog.V(4).Infof("create stable failed %v\n", err)
+		}
+		_, err = DB.Exec(insertSQL)
+		if err != nil {
+			klog.Infof("failed add data to TdEngine:%v", err)
+		}
+	case true:
+		_, err := DB.Exec(insertSQL)
+		if err != nil {
+			klog.Infof("failed add data to TdEngine:%v", err)
+		}
+	default:
+		klog.Infoln("failed add data to TdEngine")
+	}
+
 	return nil
 	//TODO implement me
 	//panic("implement me")

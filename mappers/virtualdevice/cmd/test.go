@@ -31,16 +31,16 @@ func main() {
 
 	data := common.DataModel{
 		DeviceName:   "device03",
-		PropertyName: "shidu",
-		Value:        "21.0",
+		PropertyName: "wendu",
+		Value:        "31.0",
 		Type:         "string",
 		TimeStamp:    time.Now().Unix(),
 	}
 
 	fmt.Println(data)
 
-	datatime := time.Unix(data.TimeStamp, 0).Format("2006-01-02 15:04:05")
-	fmt.Println(datatime)
+	//datatime := time.Unix(data.TimeStamp, 0).Format("2006-01-02 15:04:05")
+	//fmt.Println(datatime)
 
 	//insertSQL := fmt.Sprintf("INSERT INTO %s USING %s TAGS ('%s') VALUES('%v','%s', '%s', '%s', '%s');",
 	//	data.PropertyName, dbconfig.Standard.SuperTable, dbconfig.Standard.TagLabel, datatime, data.DeviceName, data.PropertyName, data.Value, data.Type)
@@ -57,5 +57,12 @@ func main() {
 
 	//stabel := fmt.Sprintf("CREATE STABLE %s (ts timestamp, devicename binary(64), propertyname binary(64), data binary(64),type binary(64)) TAGS (%s binary(64));", data.DeviceName, data.PropertyName)
 	//fmt.Println(stabel)
+
+	// stabelexits := false
+	//rows, err := tdengine.DB.Query("show stables LIKE 'device03';")
+	//if err != nil {
+	//	fmt.Println("failed query stables")
+	//}
+	//fmt.Println(rows.Next())
 
 }
