@@ -140,7 +140,7 @@ func dataHandler(ctx context.Context, dev *driver.CustomizedDev) {
 			pushHandler(ctx, &twin, dev.CustomizedClient, &visitorConfig, dataModel)
 		}
 		// handle database
-		if false {
+		if twin.PVisitor.DbProvider.DbProviderName != "" {
 			// TODO add flag to start db work
 			dataModel := common.NewDataModel(dev.Instance.Name, twin.PVisitor.PropertyName, common.WithType(twin.Desired.Metadatas.Type))
 			dbHandler(ctx, &twin, dev.CustomizedClient, &visitorConfig, dataModel)
