@@ -15,31 +15,20 @@ var (
 )
 
 type DataBaseConfig struct {
-	Config   *ConfigData   `json:"config,omitempty"`
-	Standard *DataStandard `json:"dataStandard,omitempty"`
+	Config *ConfigData `json:"config,omitempty"`
 }
 type ConfigData struct {
 	Dsn string `json:"dsn,omitempty"`
 }
-type DataStandard struct {
-	SuperTable string `json:"superTable,omitempty"`
-	TagLabel   string `json:"tagLabel,omitempty"`
-}
 
-func NewDataBaseClient(config json.RawMessage, standard json.RawMessage) (*DataBaseConfig, error) {
+func NewDataBaseClient(config json.RawMessage) (*DataBaseConfig, error) {
 	configdata := new(ConfigData)
-	datastandard := new(DataStandard)
 	err := json.Unmarshal(config, configdata)
 	if err != nil {
 		return nil, err
 	}
-	err = json.Unmarshal(standard, datastandard)
-	if err != nil {
-		return nil, err
-	}
 	return &DataBaseConfig{
-		Config:   configdata,
-		Standard: datastandard,
+		Config: configdata,
 	}, nil
 }
 func (d *DataBaseConfig) InitDbClient() error {
@@ -63,13 +52,20 @@ func (d *DataBaseConfig) CloseSessio() {
 }
 func (d *DataBaseConfig) AddData(data *common.DataModel) error {
 
+	stabel := fmt.Sprintf("CREATE STABLE %s (ts timestamp, devicename binary(64), propertyname binary(64), data binary(64),type binary(64)) TAGS (propertyName binary(64));", data.DeviceName)
+	fmt.Println(stabel)
+	_, err := DB.Exec(stabel)
+	if err != nil {
+		fmt.Printf("create stable failed %v", err)
+	}
+
 	datatime := time.Unix(data.TimeStamp, 0).Format("2006-01-02 15:04:05")
 	insertSQL := fmt.Sprintf("INSERT INTO %s USING %s TAGS ('%s') VALUES('%v','%s', '%s', '%s', '%s');",
-		data.PropertyName, d.Standard.SuperTable, d.Standard.TagLabel, datatime, data.DeviceName, data.PropertyName, data.Value, data.Type)
+		data.PropertyName, data.DeviceName, data.PropertyName, datatime, data.DeviceName, data.PropertyName, data.Value, data.Type)
 
 	fmt.Println(insertSQL)
 	//tdengine创建超级表第一列必须为时间戳
-	_, err := DB.Exec(insertSQL)
+	_, err = DB.Exec(insertSQL)
 	if err != nil {
 		klog.Infof("failed add data to tdengine:%v", err)
 	}

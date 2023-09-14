@@ -12,7 +12,9 @@ import (
 
 	"k8s.io/klog/v2"
 
-	db "github.com/kubeedge/mapper-generator/mappers/virtualdevice/data/dbprovider/tdengine"
+	dbInflux "github.com/kubeedge/mapper-generator/mappers/virtualdevice/data/dbprovider/influx"
+	dbRedis "github.com/kubeedge/mapper-generator/mappers/virtualdevice/data/dbprovider/redis"
+	dbTdengine "github.com/kubeedge/mapper-generator/mappers/virtualdevice/data/dbprovider/tdengine"
 	httpMethod "github.com/kubeedge/mapper-generator/mappers/virtualdevice/data/publish/http"
 	mqttMethod "github.com/kubeedge/mapper-generator/mappers/virtualdevice/data/publish/mqtt"
 	"github.com/kubeedge/mapper-generator/mappers/virtualdevice/driver"
@@ -199,21 +201,109 @@ func pushHandler(ctx context.Context, twin *common.Twin, client *driver.Customiz
 
 // dbHandler start db client to save data
 func dbHandler(ctx context.Context, twin *common.Twin, client *driver.CustomizedClient, visitorConfig *driver.VisitorConfig, dataModel *common.DataModel) {
-	switch twin.PVisitor.DbProvider.DbProviderName {
-	case "tdengine":
 
+	switch twin.PVisitor.DbProvider.DbProviderName {
+	case "influx":
+		//testconfig := make(map[string]interface{})
+		//err := json.Unmarshal(twin.PVisitor.DbProvider.ProviderConfig.ConfigData, &testconfig)
+		//if err == nil {
+		//	klog.V(1).Infof("ProviderConfig.ConfigData = %v", testconfig)
+		//}
+		//testconfig = make(map[string]interface{})
+		//err = json.Unmarshal(twin.PVisitor.DbProvider.ProviderConfig.DataStandard, &testconfig)
+		//if err == nil {
+		//	klog.V(1).Infof("ProviderConfig.DataStandard = %v", testconfig)
+		//}
+		dbConfig, err := dbInflux.NewDataBaseClient(twin.PVisitor.DbProvider.ProviderConfig.ConfigData, twin.PVisitor.DbProvider.ProviderConfig.DataStandard)
+		if err != nil {
+			klog.Errorf("new database client error: %v", err)
+			return
+		}
+		dbClient := dbConfig.InitDbClient()
+		if err != nil {
+			klog.Errorf("init database client err: %v", err)
+			return
+		}
+		reportCycle := time.Duration(twin.PVisitor.ReportCycle)
+		if reportCycle == 0 {
+			reportCycle = 1 * time.Second
+		}
+		ticker := time.NewTicker(reportCycle)
+		go func() {
+			for {
+				select {
+				case <-ticker.C:
+					deviceData, err := client.GetDeviceData(visitorConfig)
+					if err != nil {
+						klog.Errorf("publish error: %v", err)
+						continue
+					}
+					sData, err := common.ConvertToString(deviceData)
+					if err != nil {
+						klog.Errorf("Failed to convert publish method data : %v", err)
+						continue
+					}
+					dataModel.SetValue(sData)
+					dataModel.SetTimeStamp()
+
+					err = dbConfig.AddData(dataModel, dbClient)
+					if err != nil {
+						klog.Errorf("influx database add data error: %v", err)
+						return
+					}
+				case <-ctx.Done():
+					dbConfig.CloseSession(dbClient)
+					return
+				}
+			}
+		}()
+	case "redis":
+		dbConfig, err := dbRedis.NewDataBaseClient(twin.PVisitor.DbProvider.ProviderConfig.RedisConfigData)
+		if err != nil {
+			klog.Errorf("new database client error: %v", err)
+			return
+		}
+		dbClient, err := dbConfig.InitDbClient()
+		if err != nil {
+			klog.Errorf("init database client err: %v", err)
+			return
+		}
+		reportCycle := time.Duration(twin.PVisitor.ReportCycle)
+		if reportCycle == 0 {
+			reportCycle = 1 * time.Second
+		}
+		ticker := time.NewTicker(reportCycle)
+		go func() {
+			for {
+				select {
+				case <-ticker.C:
+					deviceData, err := client.GetDeviceData(visitorConfig)
+					if err != nil {
+						klog.Errorf("publish error: %v", err)
+						continue
+					}
+					sData, err := common.ConvertToString(deviceData)
+					if err != nil {
+						klog.Errorf("Failed to convert publish method data : %v", err)
+						continue
+					}
+					dataModel.SetValue(sData)
+					dataModel.SetTimeStamp()
+
+					err = dbConfig.AddData(dataModel, dbClient)
+					if err != nil {
+						klog.Errorf("redis database add data error: %v", err)
+						return
+					}
+				case <-ctx.Done():
+					dbConfig.CloseSession(dbClient)
+					return
+				}
+			}
+		}()
+	case "tdengine":
 		klog.V(1).Infof("providerConfig = %v", twin.PVisitor.DbProvider.ProviderConfig)
-		testconfig := make(map[string]interface{})
-		err := json.Unmarshal(twin.PVisitor.DbProvider.ProviderConfig.ConfigData, &testconfig)
-		if err == nil {
-			klog.V(1).Infof("ProviderConfig.ConfigData = %v", testconfig)
-		}
-		testconfig = make(map[string]interface{})
-		err = json.Unmarshal(twin.PVisitor.DbProvider.ProviderConfig.DataStandard, &testconfig)
-		if err == nil {
-			klog.V(1).Infof("ProviderConfig.DataStandard = %v", testconfig)
-		}
-		dbConfig, err := db.NewDataBaseClient(twin.PVisitor.DbProvider.ProviderConfig.ConfigData, twin.PVisitor.DbProvider.ProviderConfig.DataStandard)
+		dbConfig, err := dbTdengine.NewDataBaseClient(twin.PVisitor.DbProvider.ProviderConfig.TdengineConfigData)
 		if err != nil {
 			klog.Errorf("new database client error: %v", err)
 			return
