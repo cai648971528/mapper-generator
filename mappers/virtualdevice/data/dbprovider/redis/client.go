@@ -9,6 +9,10 @@ import (
 	"strconv"
 )
 
+var (
+	redisCli *redis.Client
+)
+
 type DataBaseConfig struct {
 	Config *ConfigData
 }
@@ -30,37 +34,37 @@ func NewDataBaseClient(config json.RawMessage) (*DataBaseConfig, error) {
 	return &DataBaseConfig{Config: configdata}, nil
 }
 
-func (d *DataBaseConfig) InitDbClient() (*redis.Client, error) {
-	redisClient := redis.NewClient(&redis.Options{
+func (d *DataBaseConfig) InitDbClient() error {
+	redisCli = redis.NewClient(&redis.Options{
 		Addr:         d.Config.Addr,
 		Password:     d.Config.Password,
 		DB:           int(d.Config.DB),
 		PoolSize:     int(d.Config.PoolSize),
 		MinIdleConns: int(d.Config.MinIdleConns),
 	})
-	pong, err := redisClient.Ping(context.Background()).Result()
+	pong, err := redisCli.Ping(context.Background()).Result()
 	if err != nil {
 		klog.Errorf("init redis database failed, err = %v", err)
-		return nil, err
+		return err
 	} else {
 		klog.V(1).Infof("init redis database successfully, with return cmd %s", pong)
 	}
-	return redisClient, nil
+	return nil
 }
 
-func (d *DataBaseConfig) CloseSession(client *redis.Client) {
-	err := client.Close()
+func (d *DataBaseConfig) CloseSession() {
+	err := redisCli.Close()
 	if err != nil {
 		klog.V(4).Info("close database failed")
 	}
 }
 
-func (d *DataBaseConfig) AddData(data *common.DataModel, client *redis.Client) error {
+func (d *DataBaseConfig) AddData(data *common.DataModel) error {
 	ctx := context.Background()
 	// The key to construct the ordered set, here DeviceName is used as the key
 	klog.V(1).Infof("deviceName:%s", data.DeviceName)
 	// Check if the current ordered set exists
-	exists, err := client.Exists(ctx, data.DeviceName).Result()
+	exists, err := redisCli.Exists(ctx, data.DeviceName).Result()
 	if err != nil {
 		klog.V(4).Info("Exit AddData")
 		return err
@@ -68,7 +72,7 @@ func (d *DataBaseConfig) AddData(data *common.DataModel, client *redis.Client) e
 	deviceData := "TimeStamp: " + strconv.FormatInt(data.TimeStamp, 10) + " PropertyName: " + data.PropertyName + " data: " + data.Value
 	if exists == 0 {
 		// The ordered set does not exist, create a new ordered set and add data
-		_, err = client.ZAdd(ctx, data.DeviceName, &redis.Z{
+		_, err = redisCli.ZAdd(ctx, data.DeviceName, &redis.Z{
 			Score:  float64(data.TimeStamp),
 			Member: deviceData,
 		}).Result()
@@ -78,7 +82,7 @@ func (d *DataBaseConfig) AddData(data *common.DataModel, client *redis.Client) e
 		}
 	} else {
 		// The ordered set already exists, add data directly
-		_, err = client.ZAdd(ctx, data.DeviceName, &redis.Z{
+		_, err = redisCli.ZAdd(ctx, data.DeviceName, &redis.Z{
 			Score:  float64(data.TimeStamp),
 			Member: deviceData,
 		}).Result()
