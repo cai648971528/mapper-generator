@@ -103,7 +103,9 @@ func BuildProtocolFromGrpc(device *dmiapi.Device) (common.Protocol, error) {
 	var protocolConfig []byte
 	switch protocolName {
 	case constants.Modbus:
+		klog.V(1).Info(device.Spec.Protocol.Modbus)
 		protocolConfig, err = json.Marshal(device.Spec.Protocol.Modbus)
+		klog.V(1).Info(protocolConfig)
 		if err != nil {
 			return common.Protocol{}, err
 		}
