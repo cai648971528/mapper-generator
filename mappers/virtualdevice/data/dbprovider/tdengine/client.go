@@ -7,6 +7,7 @@ import (
 	"github.com/kubeedge/mapper-generator/pkg/common"
 	_ "github.com/taosdata/driver-go/v3/taosRestful"
 	"k8s.io/klog/v2"
+	"strings"
 	"time"
 )
 
@@ -54,13 +55,16 @@ func (d *DataBaseConfig) CloseSessio() {
 }
 func (d *DataBaseConfig) AddData(data *common.DataModel) error {
 
-	stable_name := fmt.Sprintf("SHOW STABLES LIKE '%s'", data.DeviceName)
+	legal_table := strings.Replace(data.DeviceName, "-", "_", -1)
+	legal_tag := strings.Replace(data.PropertyName, "-", "_", -1)
+
+	stable_name := fmt.Sprintf("SHOW STABLES LIKE '%s'", legal_table)
 
 	stabel := fmt.Sprintf("CREATE STABLE %s (ts timestamp, devicename binary(64), propertyname binary(64), data binary(64),type binary(64)) TAGS (localtion binary(64));", data.DeviceName)
 
 	datatime := time.Unix(data.TimeStamp, 0).Format("2006-01-02 15:04:05")
 	insertSQL := fmt.Sprintf("INSERT INTO %s USING %s TAGS ('%s') VALUES('%v','%s', '%s', '%s', '%s');",
-		data.PropertyName, data.DeviceName, data.PropertyName, datatime, data.DeviceName, data.PropertyName, data.Value, data.Type)
+		legal_tag, data.DeviceName, legal_tag, datatime, data.DeviceName, data.PropertyName, data.Value, data.Type)
 
 	rows, _ := DB.Query(stable_name)
 
