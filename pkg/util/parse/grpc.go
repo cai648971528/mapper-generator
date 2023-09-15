@@ -53,6 +53,8 @@ func getDbProviderFromGrpc(visitor *dmiapi.DevicePropertyVisitor) (string, error
 		return "influx", nil
 	} else if visitor.DbProvider.Redis != nil {
 		return "redis", nil
+	} else if visitor.DbProvider.Tdengine != nil {
+		return "tdengine", nil
 	}
 	return "", errors.New("can not parse dbProvider")
 }
