@@ -47,6 +47,15 @@ func getPushMethodFromGrpc(visitor *dmiapi.DevicePropertyVisitor) (string, error
 	}
 	return "", errors.New("can not parse publish method")
 }
+func getDbProviderFromGrpc(visitor *dmiapi.DevicePropertyVisitor) (string, error) {
+	// TODO add more dbProvider
+	if visitor.DbProvider.Influx != nil {
+		return "influx", nil
+	} else if visitor.DbProvider.Redis != nil {
+		return "redis", nil
+	}
+	return "", errors.New("can not parse dbProvider")
+}
 
 func BuildProtocolFromGrpc(device *dmiapi.Device) (common.Protocol, error) {
 	protocolName, err := getProtocolNameFromGrpc(device)
@@ -307,19 +316,73 @@ func buildPropertyVisitorsFromGrpc(device *dmiapi.Device) []common.PropertyVisit
 			}
 		}
 
-		if pptv.PushMethod == nil {
-			cur := common.PropertyVisitor{
-				Name:          pptv.PropertyName,
-				PropertyName:  pptv.PropertyName,
-				ModelName:     device.Spec.DeviceModelReference,
-				CollectCycle:  pptv.GetCollectCycle(),
-				ReportCycle:   pptv.GetReportCycle(),
-				Protocol:      protocolName,
-				VisitorConfig: visitorConfig,
+		var dbProviderName string
+		var dbProvider common.ProviderConfig
+		if pptv.DbProvider != nil {
+			dbProviderName, err = getDbProviderFromGrpc(pptv)
+			if err != nil {
+				klog.Errorf("err: %+v", err)
+				return nil
 			}
-			res = append(res, cur)
-			continue
+			switch dbProviderName {
+			case "influx":
+				configdata, err := json.Marshal(pptv.DbProvider.Influx.ConfigData)
+				if err != nil {
+					klog.Errorf("err: %+v", err)
+					return nil
+				}
+				datastandard, err := json.Marshal(pptv.DbProvider.Influx.DataStandard)
+				if err != nil {
+					klog.Errorf("err: %+v", err)
+					return nil
+				}
+				dbProvider = common.ProviderConfig{
+					ConfigData:   configdata,
+					DataStandard: datastandard,
+				}
+			case "redis":
+				redisconfigdata, err := json.Marshal(pptv.DbProvider.Redis.RedisConfigData)
+				if err != nil {
+					klog.Errorf("err: %+v", err)
+					return nil
+				}
+				dbProvider = common.ProviderConfig{
+					RedisConfigData: redisconfigdata,
+				}
+			case "tdengine":
+				tdengineConfigData, err := json.Marshal(pptv.DbProvider.Tdengine.TdengineConfigData)
+				if err != nil {
+					klog.Errorf("err: %+v", err)
+					return nil
+				}
+				dbProvider = common.ProviderConfig{
+					TdengineConfigData: tdengineConfigData,
+				}
+			}
 		}
+		//dbProviderName, err := getDbProviderFromGrpc(pptv)
+		//if err != nil {
+		//	klog.Errorf("err: %+v", err)
+		//	return nil
+		//}
+		//var dbProvider common.ProviderConfig
+		//switch dbProviderName {
+		//case "influx":
+		//	configdata, err := json.Marshal(pptv.DbProvider.Influx.ConfigData)
+		//	if err != nil {
+		//		klog.Errorf("err: %+v", err)
+		//		return nil
+		//	}
+		//	datastandard, err := json.Marshal(pptv.DbProvider.Influx.DataStandard)
+		//	if err != nil {
+		//		klog.Errorf("err: %+v", err)
+		//		return nil
+		//	}
+		//	dbProvider = common.ProviderConfig{
+		//		ConfigData:   configdata,
+		//		DataStandard: datastandard,
+		//	}
+		//}
 		pushMethodName, err := getPushMethodFromGrpc(pptv)
 		if err != nil {
 			klog.Errorf("err: %+v", err)
@@ -354,6 +417,10 @@ func buildPropertyVisitorsFromGrpc(device *dmiapi.Device) []common.PropertyVisit
 			PushMethod: common.PushMethodConfig{
 				MethodName:   pushMethodName,
 				MethodConfig: pushMethod,
+			},
+			DbProvider: common.DbProviderConfig{
+				DbProviderName: dbProviderName,
+				ProviderConfig: dbProvider,
 			},
 		}
 		res = append(res, cur)
