@@ -96,26 +96,26 @@ func (d *DataBaseConfig) AddData(data *common.DataModel) error {
 	//panic("implement me")
 }
 func (d *DataBaseConfig) GetDataByDeviceName(deviceName string) ([]*common.DataModel, error) {
-	query := fmt.Sprintf("SELECT ts, devicename, propertyname, data, type FROM %s", deviceName)
-	rows, err := DB.Query(query)
+	querySql := fmt.Sprintf("SELECT ts, devicename, propertyname, data, type FROM %s", deviceName)
+	rows, err := DB.Query(querySql)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var results []*common.DataModel
+	var dataModel []*common.DataModel
 	for rows.Next() {
-		var result common.DataModel
+		var data common.DataModel
 		var ts time.Time
-		err := rows.Scan(&ts, &result.DeviceName, &result.PropertyName, &result.Value, &result.Type)
+		err := rows.Scan(&ts, &data.DeviceName, &data.PropertyName, &data.Value, &data.Type)
 		if err != nil {
-			//klog.Infof("scan error:\n", err)
-			fmt.Printf("scan error:\n", err)
+			klog.V(4).Infof(" data scan error: %v\n", err)
+			//fmt.Printf("scan error:\n", err)
 			return nil, err
 		}
-		result.TimeStamp = ts.Unix()
-		results = append(results, &result)
+		data.TimeStamp = ts.Unix()
+		dataModel = append(dataModel, &data)
 	}
-	return results, nil
+	return dataModel, nil
 	//TODO implement me
 	//panic("implement me")
 }
@@ -123,9 +123,34 @@ func (d *DataBaseConfig) GetPropertyDataByDeviceName(deviceName string, property
 	//TODO implement me
 	panic("implement me")
 }
-func (d *DataBaseConfig) GetDataByTimeRange(start int64, end int64) ([]*common.DataModel, error) {
+func (d *DataBaseConfig) GetDataByTimeRange(deviceName string, start int64, end int64) ([]*common.DataModel, error) {
+
+	legal_table := strings.Replace(deviceName, "-", "_", -1)
+	startTime := time.Unix(start, 0).UTC().Format("2006-01-02 15:04:05")
+	endTime := time.Unix(end, 0).UTC().Format("2006-01-02 15:04:05")
+	//Query data within a specified time range
+	querySQL := fmt.Sprintf("SELECT ts, devicename, propertyname, data, type FROM %s WHERE ts >= '%s' AND ts <= '%s'", legal_table, startTime, endTime)
+	fmt.Println(querySQL)
+	rows, err := DB.Query(querySQL)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var dataModels []*common.DataModel
+	for rows.Next() {
+		var data common.DataModel
+		var ts time.Time
+		err := rows.Scan(&ts, &data.DeviceName, &data.PropertyName, &data.Value, &data.Type)
+		if err != nil {
+			klog.V(4).Infof("data scan failed：%v", err)
+			continue
+		}
+		dataModels = append(dataModels, &data)
+	}
+	return dataModels, nil
 	//TODO implement me
-	panic("implement me")
+	//panic("implement me")
 }
 func (d *DataBaseConfig) DeleteDataByTimeRange(start int64, end int64) ([]*common.DataModel, error) {
 	//TODO implement me

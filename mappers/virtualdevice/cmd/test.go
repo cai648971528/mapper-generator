@@ -39,30 +39,15 @@ func main() {
 
 	fmt.Println(data)
 
-	//datatime := time.Unix(data.TimeStamp, 0).Format("2006-01-02 15:04:05")
-	//fmt.Println(datatime)
-
-	//insertSQL := fmt.Sprintf("INSERT INTO %s USING %s TAGS ('%s') VALUES('%v','%s', '%s', '%s', '%s');",
-	//	data.PropertyName, dbconfig.Standard.SuperTable, dbconfig.Standard.TagLabel, datatime, data.DeviceName, data.PropertyName, data.Value, data.Type)
-	//
-	//fmt.Println(insertSQL)
-	//_, err = tdengine.DB.Exec(insertSQL)
-	//
-
-	dbconfig.AddData(&data)
-	//dbmodel, _ := dbconfig.GetDataByDeviceName("device02")
+	//dbconfig.AddData(&data)
+	//dbmodel, _ := dbconfig.GetDataByDeviceName("random_instance_01")
 	//for _, datas := range dbmodel {
 	//	fmt.Println(datas)
 	//}
 
-	//stabel := fmt.Sprintf("CREATE STABLE %s (ts timestamp, devicename binary(64), propertyname binary(64), data binary(64),type binary(64)) TAGS (%s binary(64));", data.DeviceName, data.PropertyName)
-	//fmt.Println(stabel)
-
-	// stabelexits := false
-	//rows, err := tdengine.DB.Query("show stables LIKE 'device03';")
-	//if err != nil {
-	//	fmt.Println("failed query stables")
-	//}
-	//fmt.Println(rows.Next())
+	dbmodel, _ := dbconfig.GetDataByTimeRange("random-instance-01", 1694794006, 1694794018)
+	for _, datas := range dbmodel {
+		fmt.Println(datas)
+	}
 
 }
