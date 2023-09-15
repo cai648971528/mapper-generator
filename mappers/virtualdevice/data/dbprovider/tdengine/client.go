@@ -64,7 +64,7 @@ func (d *DataBaseConfig) AddData(data *common.DataModel) error {
 
 	datatime := time.Unix(data.TimeStamp, 0).Format("2006-01-02 15:04:05")
 	insertSQL := fmt.Sprintf("INSERT INTO %s USING %s TAGS ('%s') VALUES('%v','%s', '%s', '%s', '%s');",
-		legal_tag, data.DeviceName, legal_tag, datatime, data.DeviceName, data.PropertyName, data.Value, data.Type)
+		legal_tag, legal_table, legal_tag, datatime, data.DeviceName, data.PropertyName, data.Value, data.Type)
 
 	rows, _ := DB.Query(stable_name)
 
