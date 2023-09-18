@@ -20,13 +20,7 @@ type CustomizedClient struct {
 }
 
 type ProtocolConfig struct {
-	ProtocolName       string `json:"protocolName"`
-	ProtocolConfigData `json:"configData"`
-}
-
-type ProtocolConfigData struct {
 	SlaveID float64 `json:"slaveID"`
-	// TODO: add your config data according to configmap
 }
 
 type ProtocolCommonConfig struct {
@@ -48,11 +42,6 @@ type CommonCustomizedValues struct {
 	// TODO: add your CommonCustomizedValues according to configmap
 }
 type VisitorConfig struct {
-	ProtocolName      string `json:"protocolName"`
-	VisitorConfigData `json:"configData"`
-}
-
-type VisitorConfigData struct {
 	Name           string
 	Register       string  `json:"register"`
 	Offset         uint16  `json:"offset"`
@@ -60,5 +49,4 @@ type VisitorConfigData struct {
 	Scale          float64 `json:"scale,omitempty"`
 	IsSwap         bool    `json:"isSwap,omitempty"`
 	IsRegisterSwap bool    `json:"isRegisterSwap,omitempty"`
-	// TODO: add your Visitor ConfigData according to configmap
 }
